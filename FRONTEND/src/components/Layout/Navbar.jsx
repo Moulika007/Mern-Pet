@@ -1,26 +1,23 @@
 import { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Heart } from 'lucide-react';
+import { Menu, X, Heart, User } from 'lucide-react'; // Added User icon
 import AuthContext from '../../context/AuthContext';
-
+import { Bell } from 'lucide-react';
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [likedCount, setLikedCount] = useState(0);
-  const { user, logout } = useContext(AuthContext); // Get user from context
+  const { user, logout } = useContext(AuthContext); 
   const navigate = useNavigate();
 
   // Listen for storage events (Likes)
   useEffect(() => {
     const updateLikedCount = () => {
-      // If logged in, we might fetch from API, but for UI speed we use local check or context
-      // For now, let's count localStorage items for the badge
       const likedPets = JSON.parse(localStorage.getItem('likedPets') || '[]');
       setLikedCount(likedPets.length);
     };
 
     updateLikedCount();
     window.addEventListener('storage', updateLikedCount);
-    // Custom event listener for instant updates from PetCard
     window.addEventListener('favoritesUpdated', updateLikedCount);
     
     return () => {
@@ -49,6 +46,10 @@ const Navbar = () => {
               Pet<span className="text-orange-600">Haven</span>
             </span>
           </Link>
+          <Link to="/notifications" className="p-2 text-gray-600 hover:text-orange-600 relative">
+  <Bell className="w-6 h-6" />
+  {/* Optional: You can fetch request count and show a red dot here */}
+</Link>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
@@ -74,9 +75,15 @@ const Navbar = () => {
             {/* User Auth Buttons */}
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-gray-900 font-semibold bg-gray-100 px-3 py-1 rounded-lg">
-                  Hi, {user.name?.split(' ')[0]}
-                </span>
+                {/* Link to Profile Page */}
+                <Link 
+                  to="/profile" 
+                  className="flex items-center space-x-2 text-gray-900 font-semibold bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-orange-100 hover:text-orange-700 transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  <span>Hi, {user.name?.split(' ')[0]}</span>
+                </Link>
+                
                 <button 
                   onClick={handleLogout}
                   className="bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
@@ -110,9 +117,20 @@ const Navbar = () => {
           <Link to="/cats" className="block text-gray-700 font-medium py-2" onClick={() => setIsMenuOpen(false)}>Find Cats</Link>
           <Link to="/birds" className="block text-gray-700 font-medium py-2" onClick={() => setIsMenuOpen(false)}>Find Birds</Link>
           <Link to="/favorites" className="block text-gray-700 font-medium py-2" onClick={() => setIsMenuOpen(false)}>Favorites ({likedCount})</Link>
+          
           <div className="border-t border-gray-100 pt-3">
             {user ? (
-              <button onClick={handleLogout} className="w-full text-left text-red-600 font-bold py-2">Logout</button>
+              <div className="flex flex-col space-y-2">
+                 <Link 
+                   to="/profile" 
+                   className="flex items-center space-x-2 text-gray-900 font-semibold py-2"
+                   onClick={() => setIsMenuOpen(false)}
+                 >
+                   <User className="w-5 h-5 text-orange-600" />
+                   <span>My Profile ({user.name})</span>
+                 </Link>
+                 <button onClick={handleLogout} className="w-full text-left text-red-600 font-bold py-2">Logout</button>
+              </div>
             ) : (
               <div className="flex flex-col space-y-2">
                 <Link to="/login" className="block text-center text-gray-700 font-bold border border-gray-200 py-2 rounded-lg" onClick={() => setIsMenuOpen(false)}>Log in</Link>

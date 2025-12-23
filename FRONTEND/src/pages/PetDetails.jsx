@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Info, Heart, Share2, Check, X } from 'lucide-react'; // Added Check and X icons
+import { ArrowLeft, MapPin, Info, Check, X } from 'lucide-react'; 
 import AuthContext from '../context/AuthContext';
 import api from '../utils/api';
 import Button from '../components/UI/Button';
@@ -14,7 +14,7 @@ const PetDetails = () => {
   const [pet, setPet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [showPopup, setShowPopup] = useState(false); // State for the popup
+  const [showPopup, setShowPopup] = useState(false); 
 
   // Fetch Pet Data
   useEffect(() => {
@@ -31,24 +31,46 @@ const PetDetails = () => {
     fetchPet();
   }, [id]);
 
-  const handleBuyNow = () => {
+  // --- UPDATED BUY LOGIC (STEP 6) ---
+  const handleBuyNow = async () => {
+    // 1. Check Login
     if (!user) {
-      // If user is not logged in, send them to signup
       navigate('/signup', { state: { returnTo: `/pet/${id}` } });
-    } else {
-      // Show the success popup
+      return;
+    }
+
+    // 2. Prevent Owner from Buying Own Pet
+    // We handle cases where owner is an object (populated) or a string ID
+    const ownerId = typeof pet.owner === 'object' ? pet.owner._id : pet.owner;
+    
+    if (ownerId === user._id) {
+      alert("You cannot adopt your own pet!");
+      return;
+    }
+
+    // 3. Send Request to Backend
+    try {
+      await api.post('/requests', {
+        petId: pet._id,
+        sellerId: ownerId
+      });
+      
+      // 4. Show Success Popup if API call works
       setShowPopup(true);
+    } catch (error) {
+      // Show error (e.g., "You have already requested this pet")
+      alert(error.response?.data?.message || "Failed to send adoption request.");
     }
   };
 
-  // 1. Loading State (Prevents blank page)
+  // Loading State
   if (loading) return (
     <div className="min-h-screen flex justify-center items-center">
       <LoadingSpinner size="large" />
     </div>
   );
 
-  // 2. Error State (If pet ID is wrong)
+  // Error State
   if (!pet) return (
     <div className="min-h-screen flex flex-col items-center justify-center">
       <h2 className="text-2xl font-bold text-gray-800">Pet not found</h2>
@@ -71,7 +93,7 @@ const PetDetails = () => {
           <div className="space-y-4">
             <div className="aspect-w-4 aspect-h-3 rounded-3xl overflow-hidden shadow-lg bg-gray-200 h-[400px] relative group">
                <img 
-                 src={pet.images && pet.images[activeImage] ? pet.images[activeImage] : 'https://via.placeholder.com/600'} 
+                 src={pet.image || (pet.images && pet.images[activeImage]) || 'https://via.placeholder.com/600'} 
                  alt={pet.name} 
                  className="w-full h-full object-cover"
                />
@@ -103,7 +125,7 @@ const PetDetails = () => {
                <div>
                  <h1 className="text-4xl font-bold text-gray-900 mb-2">{pet.name}</h1>
                  <div className="flex items-center text-gray-500 font-medium">
-                    <MapPin className="w-4 h-4 mr-1 text-orange-500" /> {pet.location}
+                    <MapPin className="w-4 h-4 mr-1 text-orange-500" /> {pet.location || 'Location available on request'}
                  </div>
                </div>
                <div className="bg-indigo-50 px-4 py-2 rounded-xl">
@@ -117,15 +139,15 @@ const PetDetails = () => {
              <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-orange-50 p-4 rounded-2xl text-center border border-orange-100">
                     <span className="block text-orange-400 text-xs uppercase font-bold tracking-wider mb-1">Age</span>
-                    <span className="text-gray-900 font-bold text-lg">{pet.age}</span>
+                    <span className="text-gray-900 font-bold text-lg">{pet.age || 'N/A'}</span>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-2xl text-center border border-blue-100">
                     <span className="block text-blue-400 text-xs uppercase font-bold tracking-wider mb-1">Gender</span>
-                    <span className="text-gray-900 font-bold text-lg">{pet.gender}</span>
+                    <span className="text-gray-900 font-bold text-lg">{pet.gender || 'Unknown'}</span>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-2xl text-center border border-purple-100">
                     <span className="block text-purple-400 text-xs uppercase font-bold tracking-wider mb-1">Breed</span>
-                    <span className="text-gray-900 font-bold text-lg truncate px-1">{pet.breed}</span>
+                    <span className="text-gray-900 font-bold text-lg truncate px-1">{pet.breed || pet.category}</span>
                 </div>
              </div>
 
@@ -135,30 +157,34 @@ const PetDetails = () => {
                     <Info className="w-5 h-5 mr-2 text-indigo-500" /> About {pet.name}
                 </h3>
                 <p className="text-gray-600 leading-relaxed bg-gray-50 p-6 rounded-2xl">
-                    {pet.description}
+                    {pet.description || "No description provided."}
                 </p>
              </div>
 
-             {/* --- BUY NOW BUTTON (Placed after description) --- */}
-             <div className="mb-8">
+             {/* --- BUY NOW BUTTON --- */}
+             <div className="mb-8 mt-auto">
                 <Button 
                   onClick={handleBuyNow} 
                   className="w-full py-4 text-lg shadow-xl shadow-indigo-200 transform transition-transform active:scale-95 flex items-center justify-center font-bold"
                 >
-                  Buy Now
+                  Request to Adopt / Buy Now
                 </Button>
              </div>
 
-             {/* Owner Info (Optional) */}
-             {pet.contact && (
-               <div className="mt-auto p-4 border border-gray-100 rounded-2xl flex items-center justify-between bg-gray-50/50">
+             {/* Owner Info (Dynamic Check) */}
+             {(pet.owner || pet.contact) && (
+               <div className="p-4 border border-gray-100 rounded-2xl flex items-center justify-between bg-gray-50/50">
                  <div className="flex items-center">
                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold mr-3">
-                     {pet.contact.name?.charAt(0) || 'O'}
+                     <span className="capitalize">
+                        {(typeof pet.owner === 'object' ? pet.owner.name : 'O').charAt(0)}
+                     </span>
                    </div>
                    <div>
                      <p className="text-sm text-gray-400 font-medium">Pet Owner</p>
-                     <p className="font-bold text-gray-900">{pet.contact.name}</p>
+                     <p className="font-bold text-gray-900 capitalize">
+                        {typeof pet.owner === 'object' ? pet.owner.name : 'Verified Seller'}
+                     </p>
                    </div>
                  </div>
                </div>
@@ -186,9 +212,9 @@ const PetDetails = () => {
               <Check className="w-10 h-10 text-green-600" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Adoption Noted!</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Request Sent!</h2>
             <p className="text-gray-500 mb-8 leading-relaxed">
-              Thank you for showing interest in <strong>{pet.name}</strong>. The owner has been notified and will contact you shortly.
+              We have notified the owner about your interest in <strong>{pet.name}</strong>. They will review your request and contact you soon.
             </p>
 
             <button 

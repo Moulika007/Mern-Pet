@@ -17,7 +17,7 @@ app.use(cors()); // Enable CORS for frontend access
 // Routes
 app.use('/api/pets', require('./routes/petRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
-
+app.use('/api/requests', require('./routes/requestRoutes'));
 // Basic route to check if server is running
 app.get('/', (req, res) => {
   res.send('API is running...');
